@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fingerprint & Cookies Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/evercookie@0.5.9/evercookie.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        button { margin: 10px; padding: 10px; cursor: pointer; }
+        #result { margin-top: 20px; padding: 15px; border: 1px solid #ddd; background: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>Тестирование сбора данных</h1>
+    
+    <button onclick="logVisit()">Записать посещение</button>
+    <button onclick="getFingerprint()">Собрать Fingerprint</button>
+    <button onclick="setCookie()">Записать куки</button>
+    <button onclick="setEverCookie()">Записать EverCookie</button>
+    <button onclick="showAllCookies()">Показать все куки</button>
+    
+    <div id="result"></div>
+
+    <script>
+        // Конфигурация Google Apps Script (замените на свой URL)
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzL2RbciVJ3y2fVisvE4g31_m9VT_LupqWKtMYE65hIay7WKWBrxfHHK4CJV2ASYKXswQ/exec";
+
+        // EverCookie инициализация
+        const ec = new Evercookie();
+
+        // Функция для отправки данных в Google Таблицы
+        async function sendToGoogleSheets(data) {
+            try {
+                await fetch(APPS_SCRIPT_URL, {
+                    method: "POST",
+                    body: JSON.stringify(data),
+                    headers: { "Content-Type": "application/json" }
+                });
+                console.log("Данные отправлены в Google Таблицы");
+            } catch (error) {
+                console.error("Ошибка отправки:", error);
+            }
+        }
+
+        // Запись посещения (автоматически при загрузке страницы)
+        async function logVisit() {
+            const ip = await fetch("https://api.ipify.org?format=json")
+                .then(res => res.json())
+                .then(data => data.ip)
+                .catch(() => "Unknown IP");
+
+            const userAgent = navigator.userAgent;
+            const timestamp = new Date().toISOString();
+
+            await sendToGoogleSheets({
+                type: "PAGE_VISIT",
+                timestamp,
+                ip,
+                userAgent
+            });
+
+            document.getElementById("result").innerHTML = `
+                <strong>Посещение записано:</strong><br>
+                Время: ${timestamp}<br>
+                IP: ${ip}<br>
+                Устройство: ${userAgent}
+            `;
+        }
+
+        // Сбор Fingerprint
+        async function getFingerprint() {
+            try {
+                const fp = await FingerprintJS.load();
+                const result = await fp.get();
+                const timestamp = new Date().toISOString();
+
+                await sendToGoogleSheets({
+                    type: "FINGERPRINT",
+                    timestamp,
+                    fingerprint: result.visitorId,
+                    components: result.components
+                });
+
+                document.getElementById("result").innerHTML = `
+                    <strong>Fingerprint записан:</strong><br>
+                    ID: ${result.visitorId}<br>
+                    Время: ${timestamp}
+                `;
+            } catch (error) {
+                console.error("Fingerprint error:", error);
+            }
+        }
+
+        // Запись обычных куки
+        function setCookie() {
+            const cookieName = "test_cookie_" + Math.floor(Math.random() * 1000);
+            const cookieValue = "value_" + Date.now();
+            document.cookie = `${cookieName}=${cookieValue}; expires=Fri, 31 Dec 2025 23:59:59 GMT; path=/`;
+            
+            const timestamp = new Date().toISOString();
+            sendToGoogleSheets({
+                type: "COOKIE_SET",
+                timestamp,
+                cookieName,
+                cookieValue
+            });
+
+            document.getElementById("result").innerHTML = `
+                <strong>Куки записаны:</strong><br>
+                Имя: ${cookieName}<br>
+                Значение: ${cookieValue}<br>
+                Время: ${timestamp}
+            `;
+        }
+
+        // Запись EverCookie
+        function setEverCookie() {
+            const ecValue = "evercookie_" + Date.now();
+            ec.set("evercookie_test", ecValue);
+            
+            const timestamp = new Date().toISOString();
+            sendToGoogleSheets({
+                type: "EVERCOOKIE_SET",
+                timestamp,
+                value: ecValue
+            });
+
+            document.getElementById("result").innerHTML = `
+                <strong>EverCookie записан:</strong><br>
+                Значение: ${ecValue}<br>
+                Время: ${timestamp}
+            `;
+        }
+
+        // Показать все куки
+        function showAllCookies() {
+            const cookies = document.cookie.split(";").map(c => c.trim());
+            let cookiesText = cookies.join("<br>");
+            
+            document.getElementById("result").innerHTML = `
+                <strong>Доступные куки:</strong><br>
+                ${cookiesText || "Нет кук"}
+            `;
+        }
+
+        // Автоматически записываем посещение при загрузке страницы
+        window.onload = logVisit;
+    </script>
+</body>
+</html>
