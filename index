@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fingerprint & Cookies Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
+</head>
+<body>
+    <h1>Тестирование сбора данных</h1>
+    <button onclick="getFingerprint()">Собрать Fingerprint</button>
+    <button onclick="setCookie()">Записать куки</button>
+    <div id="result"></div>
+
+    <script>
+        // Сбор fingerprint
+        async function getFingerprint() {
+            const fp = await FingerprintJS.load();
+            const result = await fp.get();
+            document.getElementById("result").innerHTML = `Fingerprint: ${result.visitorId}`;
+            console.log(result);
+        }
+
+        // Установка куки
+        function setCookie() {
+            document.cookie = "test_cookie=123; expires=Fri, 31 Dec 2025 23:59:59 GMT; path=/";
+            document.getElementById("result").innerHTML = "Куки установлены!";
+        }
+    </script>
+</body>
+</html>
